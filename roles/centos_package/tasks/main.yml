@@ -1,0 +1,21 @@
+---
+# tasks file for centos_package
+- name: Adding Repository File
+  copy:
+    src: "{{ src }}"
+    dest: "{{ dest }}"
+    mode: '0755'
+  when: src != ""
+
+- name: Installing Package Using yum
+  yum:
+    name: "{{ package }}"
+    state: latest
+    update_cache: yes
+
+- name: Starting Service
+  service:
+    name: "{{ service }}"
+    state: started
+    enabled: yes
+  when: service != ""

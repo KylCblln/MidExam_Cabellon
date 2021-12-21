@@ -1,0 +1,39 @@
+---
+# tasks file for elasticsearch
+
+- name: Editing host elasticsearch.yml
+  replace:
+    path: /etc/elasticsearch/elasticsearch.yml
+    regexp: "#network.host: 192.168.0.1"
+    replace: "network.host: {{ elasticsearch_host }}"
+  register: elasticsearch_yml1
+
+- name: Allowing Port on elasticsearch.yml
+  replace:
+    path: /etc/elasticsearch/elasticsearch.yml
+    regexp: "#http.port: 9200"
+    replace: "http.port: 9200"
+  register: elasticsearch_yml1
+
+- name: Creating a Service Configuration Directory
+  file:
+    path: /etc/systemd/system/elasticsearch.service.d
+    state: directory
+    mode: '0755'
+
+- name: Increase Systemd Timeout
+  copy:
+    src: "{{ systemd_src }}"
+    dest: "/etc/systemd/system/elasticsearch.service.d/startup-timeout.conf"
+    mode: '0755'
+  register: timeout_conf
+
+- name: Reloading systemctl Daemon
+  shell: systemctl daemon-reload
+  when: timeout_conf.changed
+
+- name: Installing Elasticsearch
+  service:
+    name: elasticsearch
+    state: started
+    enabled: yes

@@ -1,0 +1,110 @@
+---
+# tasks file for centos_httpd
+- name: Disabling Firewall
+  service:
+    name: firewalld
+    state: stopped
+    enabled: no
+
+- name: Installing HTTPD Service
+  service:
+    name: httpd
+    state: started
+    enabled: yes
+
+- name: Creating /var/www/domain/ for domain config
+  file:
+    path: "/var/www/{{ domain }}"
+    state: directory
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+
+- name: Creating /var/www/domain/html for domain config
+  file:
+    path: "/var/www/{{ domain }}/html"
+    state: directory
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+
+- name: Creating /var/www/domain/log for domain config
+  file:
+    path: "/var/www/{{ domain }}/log"
+    state: directory
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+
+- name: Copying index.html
+  copy:
+    src: "{{ index_html }}"
+    dest: "/var/www/{{ domain }}/html/index.html"
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+  register: index_html
+
+- name: Creating info.php
+  copy:
+    content: "<?php phpinfo();"
+    dest: "/var/www/{{ domain }}/html/info.php"
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+  register: phpinfo
+
+- name: Creating /etc/httpd/sites-available
+  file:
+    path: "/etc/httpd/sites-available"
+    state: directory
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+
+- name: Creating /etc/httpd/sites-enabled
+  file:
+    path: "/etc/httpd/sites-enabled"
+    state: directory
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+
+- name: Appending Optional Files Option on httpd.conf
+  lineinfile:
+    path: /etc/httpd/conf/httpd.conf
+    line: "IncludeOptional sites-enabled/*.conf"
+  register: httpd_conf
+
+- name: Copying Configuration File to /etc/httpd/sites-available/
+  copy:
+    src: "{{ centos_src }}"
+    dest: "/etc/httpd/sites-available/{{ domain }}.conf"
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+  register: result
+
+- name: Serve Virtual Host
+  file:
+    src: "/etc/httpd/sites-available/{{ domain }}.conf"
+    dest: "/etc/httpd/sites-enabled/{{ domain }}.conf"
+    state: link
+
+- name: Installing python-utils For Semanage
+  yum:
+    name: policycoreutils-python-utils
+    state: latest
+    update_cache: yes
+
+- name: Adjusting Apache Policies
+  seboolean:
+    name: httpd_unified
+    state: yes
+    persistent: yes
+
+- name: Restarting HTTPD
+  service:
+    name: httpd
+    state: restarted
+  when: index_html.changed or phpinfo.changed or result.changed

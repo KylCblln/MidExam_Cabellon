@@ -1,0 +1,58 @@
+---
+# tasks file for ubuntu_apache
+- name: Disabling Firewall
+  service:
+    name: ufw
+    state: stopped
+    enabled: no
+
+- name: Installing Apache service
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+
+- name: Creating /var/www/domain/ for domain config
+  file:
+    path: "/var/www/{{ domain }}"
+    state: directory
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+
+- name: Copying Configuration File to /etc/apache2/sites-available
+  copy:
+    src: "{{ ubuntu_src }}"
+    dest: "/etc/apache2/sites-available/{{ domain }}.conf"
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+  register: result
+
+- name: Setting New Virtual Host Above Default
+  shell: "a2ensite {{ domain }}; a2dissite 000-default"
+  when: result.changed
+
+- name: Copying index.html
+  copy:
+    src: "{{ index_html }}"
+    dest: "/var/www/{{ domain }}/index.html"
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+  register: index_html
+
+- name: Creating info.php on the domain directory inside /var/www/
+  copy:
+    content: "<?php phpinfo();"
+    dest: "/var/www/{{ domain }}/info.php"
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: '0755'
+  register: phpinfo
+
+- name: Restarting Apache2
+  service:
+    name: apache2
+    state: restarted
+  when: index_html.changed or phpinfo.changed
